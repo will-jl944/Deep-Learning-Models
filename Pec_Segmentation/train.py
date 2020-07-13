@@ -61,8 +61,12 @@ def parse_func(img_path, pec_path, nip_coord, window):
     img = tf.image.resize(img, [512, 256])
     pec = tf.image.resize(pec, [512, 256])
 
-    # window level
-    min_val, max_val = window[0], window[1]
+    # window augmentation
+    window_center = window[0]
+    window_width = window[1]
+    window_offset = tf.random.uniform([1], minval=(-.05 * window_center), maxval=(.05 * window_center))
+    window_center += window_offset
+    min_val, max_val = window_center - window_width / 2, window_center + window_width / 2
     img = tf.clip_by_value(img, min_val, max_val)
     img = (img - min_val) / (max_val - min_val)
 

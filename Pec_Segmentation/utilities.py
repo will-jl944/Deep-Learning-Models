@@ -27,15 +27,7 @@ def get_info_dict(csv_path, random_win_lvl):
                 else:
                     pass
 
-                # window level augmentation
-                if random_win_lvl:
-                    offset = random.uniform(-max_center*.05, max_center*.05)
-                    max_center += offset
-
-                min_val = max_center - max_width / 2
-                max_val = max_center + max_width / 2
-
-                info_dict[fake_id+'_'+img_lat+'_'+view_pos+'_'+instance_num] = (min_val, max_val)
+                info_dict[fake_id+'_'+img_lat+'_'+view_pos+'_'+instance_num] = (max_center, max_width)
 
     return info_dict
 
