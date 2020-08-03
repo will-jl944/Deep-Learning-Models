@@ -64,7 +64,7 @@ class UNet(tf.keras.Model):
             self.conv9_2 = Conv2d(2*base, base, scope='conv9_2', kernal_size=3, stride=1)
             self.conv9_3 = Conv2d(base, base, scope='conv9_3', kernal_size=3, stride=1)
 
-            self.conv10 = Conv2d(base, 2, scope='conv9_2', kernal_size=3, stride=1)
+            self.conv10 = Conv2d(base, 2, scope='conv10', kernal_size=3, stride=1)
             self.final = Conv2d(2, 1, scope='final', kernal_size=1, stride=1, padding='VALID', activation='sigmoid')
 
 
