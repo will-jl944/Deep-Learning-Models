@@ -14,7 +14,7 @@ def activation_func(z, activation='leaky_relu'):
         return tf.nn.tanh(z)
     elif activation == 'sigmoid':
         return tf.nn.sigmoid(z)
-    elif activation =='linear':
+    elif activation == 'linear':
         return z
 
     assert False, 'Activation Func "{}" not Found'.format(activation)

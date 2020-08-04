@@ -2,14 +2,12 @@ import tensorflow as tf
 import numpy as np
 from tqdm import tqdm
 from config import config
-from utils.losses import dice_coe, mse_loss
-import matplotlib.pyplot as plt
-import skimage.io
+from utils.losses import detector_loss
 import cv2
 
 
-class Train_manager():
-    def __init__(self, Regressor_class, train_dataset, test_dataset):
+class TrainManager():
+    def __init__(self, Detector_class, train_dataset, test_dataset):
         self.train_dataset = train_dataset
         self.validation_dataset_it = iter(test_dataset)
         self.model_replica_list = []
@@ -17,7 +15,7 @@ class Train_manager():
         for gpu_id in range(config.num_gpu):
             with tf.device('/device:GPU:{}'.format(gpu_id)):
                 with tf.name_scope('GPU_{}'.format(gpu_id)):
-                    self.model_replica_list.append(Regressor_class())
+                    self.model_replica_list.append(Detector_class())
 
         with tf.name_scope('Adam_Optimizer'):
             self.optimizer = tf.optimizers.Adam(config.lr)
@@ -32,13 +30,14 @@ class Train_manager():
             for step, element in tqdm(enumerate(self.train_dataset)):
                 self.train_step(element)
 
-                if step % 50 == 0:
+                if step % 10 == 0:
                     validation_element = next(self.validation_dataset_it)
                     img, coord, validation_pred_coord, validation_loss = self.validation_step(validation_element)
+                    img = (img + 1) * .5
 
-                    image_with_truth_coord = self.draw_points(tf.image.grayscale_to_rgb(img).numpy(), coord, is_truth=True)
+                    image_with_truth_coord = self.draw_points(tf.image.grayscale_to_rgb(img).numpy(), coord.numpy(), is_truth=True)
 
-                    image_with_pred_coord = self.draw_points(tf.image.grayscale_to_rgb(img).numpy(), validation_pred_coord, is_truth=False)
+                    image_with_pred_coord = self.draw_points(tf.image.grayscale_to_rgb(img).numpy(), validation_pred_coord.numpy(), is_truth=False)
 
                     # skimage.io.imsave('./validation/{}.tif'.format(step), validation_pred_pec)
                     with self.validation_writer.as_default():
@@ -59,18 +58,24 @@ class Train_manager():
         if is_truth:
             color = [0, 255, 0]
         else:
-            color = [0, 0, 255]
+            color = [255, 0, 0]
         batch_size, img_h, img_w, img_c = image_batch.shape
-        _, coord_vector_len = coord_batch.shape
+        # print('coord batch shape: ', coord_batch.shape)
+        coord_vector_len = coord_batch.shape[-1]
 
         output_image_batch = np.zeros(image_batch.shape)
 
         for batch_num in range(batch_size):
             image = image_batch[batch_num, ...]
             coord = coord_batch[batch_num, ...]
-            x = coord[0]
-            y = coord[1]
-            image = cv2.circle(image, (x, y), radius=5, color=color, thickness=-1)
+            # print('coord: ', coord)
+            existence = coord[0, 0, 0]
+            x = int(coord[0, 0, 1] * 256)
+            y = int(coord[0, 0, 2] * 512)
+            # print('x: ', x)
+            # print('y: ', y)
+            if existence > .5:
+                image = cv2.circle(image, (x, y), radius=3, color=color, thickness=-1)
             output_image_batch[batch_num, ...] = image
 
         return output_image_batch
@@ -93,7 +98,7 @@ class Train_manager():
             with tf.device('/device:GPU:{}'.format(gpu_id)), tf.name_scope('GPU_{}'.format(gpu_id)):
                 curr_tower_model = self.model_replica_list[gpu_id]
                 pred_coord = curr_tower_model(img_split[gpu_id])
-                loss = mse_loss(coord_split[gpu_id], pred_coord)
+                loss = detector_loss(coord_split[gpu_id], pred_coord)
                 # loss = dice_coe(pred_pec, pec_split[gpu_id])
 
                 tower_coords.append(pred_coord);
@@ -127,7 +132,7 @@ class Train_manager():
                     curr_tower_model = self.model_replica_list[gpu_id]
 
                     pred_coord = curr_tower_model(img_split[gpu_id])
-                    loss = mse_loss(coord_split[gpu_id], pred_coord)
+                    loss = detector_loss(coord_split[gpu_id], pred_coord)
                     # loss = dice_coe(pred_pec, pec_split[gpu_id])
 
                     tower_coords.append(pred_coord);

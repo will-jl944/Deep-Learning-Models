@@ -26,10 +26,7 @@ def get_info_dict(csv_path):
                 else:
                     pass
 
-                min_val = max_center - max_width / 2
-                max_val = max_center + max_width / 2
-
-                info_dict[fake_id+'_'+img_lat+'_'+view_pos+'_'+instance_num] = (min_val, max_val)
+                info_dict[fake_id+'_'+img_lat+'_'+view_pos+'_'+instance_num] = (max_center, max_width)
 
     return info_dict
 
@@ -40,7 +37,7 @@ def get_coord_dict(csv_path):
         reader = csv.reader(csv_file)
         for row in reader:
             if 'DN' in row[0]:
-                coord = (float(row[1].strip('()').split(', ')[0]), float(row[1].strip('()').split(', ')[1]))
+                coord = (float(row[1].strip('()').split(', ')[0]), float(row[1].strip('()').split(', ')[1]) / 256, float(row[1].strip('()').split(', ')[2]) / 512)
                 coord_dict[row[0]] = coord
 
     return coord_dict

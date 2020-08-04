@@ -71,10 +71,59 @@ def yolo_loss_wrapper(y_true, y_pred):
     return loss
 
 def mse_loss(y_true, y_pred):
-    loss = tf.reduce_mean(tf.reduce_sum(tf.math.square(y_true - y_pred), axis=1))
+    y_true = tf.reshape(y_true, shape=[config.batch_size, 3])
+    y_pred = tf.reshape(y_pred, shape=[config.batch_size, 3])
+
+    logit_true = tf.reshape(y_true[:, 0], shape=[config.batch_size, 1])
+    logit_pred = tf.reshape(y_pred[:, 0], shape=[config.batch_size, 1])
+
+    coord_true = tf.reshape(y_true[:, 1:], shape=[config.batch_size, 2])
+    coord_pred = tf.reshape(y_pred[:, 1:], shape=[config.batch_size, 2])
+
+    loss = 50 * tf.reduce_mean(tf.math.square(logit_true - logit_pred)) + \
+           tf.reduce_mean(logit_true * tf.reduce_sum(tf.math.square(coord_true - coord_pred), axis=1))
+
+    # loss = tf.reduce_mean(tf.reduce_sum(tf.math.square(y_true - tf.reshape(y_true[:, 0], [config.batch_size, 1])*y_pred), axis=1))
 
     return loss
 
+def bce_loss(y_true, y_pred):
+    loss = tf.reduce_mean(tf.keras.losses.binary_crossentropy(y_true, y_pred))   # batch_size*1
+
+    return loss
+
+def detector_loss(y_true, y_pred):
+    y_true = tf.reshape(y_true, shape=[config.batch_size, 3])
+    y_pred = tf.reshape(y_pred, shape=[config.batch_size, 3])
+
+    logit_true = tf.reshape(y_true[:, 0], shape=[config.batch_size, 1])
+    logit_pred = tf.reshape(y_pred[:, 0], shape=[config.batch_size, 1])
+
+    coord_true = tf.reshape(y_true[:, 1:], shape=[config.batch_size, 2])
+    coord_pred = tf.reshape(y_pred[:, 1:], shape=[config.batch_size, 2])
+
+    # tf.print('logit_pred', logit_pred)
+    # tf.print('coord_true', coord_true)
+    # tf.print('coord_pred', coord_pred)
+
+    # false negative
+    fn_loss = tf.reduce_mean(tf.multiply(tf.square(logit_true - logit_pred), logit_true))
+
+    # false positive
+    fp_loss = tf.reduce_mean(tf.multiply(tf.square(logit_pred), 1 - logit_true))
+
+    # position loss
+    coord_loss = tf.reduce_mean(tf.reduce_sum(tf.multiply(tf.square(coord_true - coord_pred), logit_true), axis=1))
+
+    # x loss
+    # x_loss = tf.reduce_mean(tf.reduce_sum(tf.multiply(tf.square(coord_true[:, 0] - coord_pred[:, 0]), logit_true), axis=1))
+    # tf.print('x loss: ', x_loss)
+
+    # y loss
+    # y_loss = tf.reduce_mean(tf.reduce_sum(tf.multiply(tf.square(coord_true[:, 1] - coord_pred[:, 1]), logit_true), axis=1))
+    # tf.print('y loss: ', y_loss)
+
+    return fn_loss + fp_loss + coord_loss
 
 def dice_coe(output, target, loss_type='jaccard', axis=(1, 2, 3), smooth=1e-5):
     inse = tf.reduce_sum(output * target, axis=axis)
@@ -89,4 +138,3 @@ def dice_coe(output, target, loss_type='jaccard', axis=(1, 2, 3), smooth=1e-5):
     dice = (2. * inse + smooth) / (l + r + smooth)
     dice = tf.reduce_mean(dice)
     return dice
-
